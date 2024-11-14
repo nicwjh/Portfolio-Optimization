@@ -66,7 +66,7 @@ Distributed under the MIT License - `LICENSE`.
 Repository  Link: [https://github.com/nicwjh/Portfolio-Optimization)
 
 ## Acknowledgements
-I would like to thank Professor Soroush Saghafian for his mentorship throughout this project. The exceptional learning environment and resources provided by [Harvard University](https://github.com/harvard) have also been instrumental in shaping this work. 
+I would like to thank Professor Soroush Saghafian for his mentorship throughout this project. The exceptional learning environment and resources provided by [Harvard University](https://github.com/harvard) has also been instrumental in shaping this work. 
 
 [license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
 [license-url]: https://opensource.org/licenses/MIT
