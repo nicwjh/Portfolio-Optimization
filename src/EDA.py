@@ -52,6 +52,7 @@ sns.histplot(cleaned_data["Adj Close"], kde=True, bins=50, color="blue")
 plt.title("Distribution of Adjusted Close Prices")
 plt.xlabel("Adjusted Close Price")
 plt.ylabel("Frequency")
+plt.savefig("EDA/distAdjClose.pdf", format="pdf")
 plt.show()
 
 # 3. Average Adjusted Close Price Per Ticker
@@ -62,15 +63,17 @@ plt.title("Average Adjusted Close Price Per Ticker")
 plt.xlabel("Ticker")
 plt.ylabel("Average Adjusted Close Price")
 plt.xticks(rotation=90)
+plt.savefig("EDA/avgAdjClose.pdf", format="pdf")
 plt.show()
 
 # 4. Correlation Matrix for Features
-correlation_features = ["20-Day Returns", "20-Day Volatility", "Normalized 20-Day Returns", "Normalized 20-Day Volatility"]
+correlation_features = ["Adj Close", "Close", "High", "Low", "Open", "Volume", "20-Day Returns", "Volatility"]
 correlation_data = cleaned_data[correlation_features].dropna()
 correlation_matrix = correlation_data.corr()
 plt.figure(figsize=(8, 6))
 sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f")
 plt.title("Correlation Matrix of Features")
+plt.savefig("EDA/corrMatrix.pdf", format="pdf")
 plt.show()
 
 # 5. Time-Series Plot for Adjusted Close Price of Top 5 Stocks
@@ -83,6 +86,7 @@ plt.title("Time-Series Plot of Adjusted Close Prices (Top 5 Stocks)")
 plt.xlabel("Date")
 plt.ylabel("Adjusted Close Price")
 plt.legend()
+plt.savefig("EDA/TSadjClose.pdf", format="pdf")
 plt.show()
 
 # 6. Volatility Analysis
@@ -91,9 +95,10 @@ sns.boxplot(x="Ticker", y="20-Day Volatility", data=cleaned_data)
 plt.title("Boxplot of 20-Day Volatility by Ticker")
 plt.xticks([])
 plt.ylabel("20-Day Volatility")
+plt.savefig("EDA/volBoxPlot.pdf", format="pdf")
 plt.show()
 
 # Save summary statistics to a CSV
 summary_stats = cleaned_data.describe()
-summary_stats.to_csv("eda_summary_statistics.csv")
+summary_stats.to_csv("EDA/eda_summary_statistics.csv")
 print("Summary statistics saved to eda_summary_statistics.csv")
