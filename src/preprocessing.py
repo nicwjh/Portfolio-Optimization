@@ -1,5 +1,7 @@
 import os
 import pandas as pd
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
 
 # List of NASDAQ 100 tickers
 nasdaq100_tickers = [
@@ -56,6 +58,16 @@ def preprocess_file(file_path, ticker):
         (data_cleaned['20-Day Volatility'] - data_cleaned['20-Day Volatility'].mean()) / 
         data_cleaned['20-Day Volatility'].std()
     )
+    
+    # PCA-specific preprocessing: handle missing values and standardize features
+    pca_features = ['20-Day Returns', '20-Day Volatility', 'Normalized 20-Day Returns', 'Normalized 20-Day Volatility']
+    imputer = SimpleImputer(strategy='mean')
+    scaler = StandardScaler()
+
+    if all(feature in data_cleaned.columns for feature in pca_features):
+        # Impute missing values and standardize features
+        data_cleaned[pca_features] = imputer.fit_transform(data_cleaned[pca_features])
+        data_cleaned[pca_features] = scaler.fit_transform(data_cleaned[pca_features])
     
     # Drop intermediate 'Daily Returns' column
     data_cleaned.drop(columns=['Daily Returns'], inplace=True)
