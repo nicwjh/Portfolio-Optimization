@@ -29,9 +29,9 @@
 The main packages used in our project:
 * pandas
 * numpy
-* os
 * sklearn
 * matplotlib.pyplot
+* os
 
 ### Methods 
 * Long-Short-Term-Memory Neural Networks (LSTM)
