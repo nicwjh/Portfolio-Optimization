@@ -34,7 +34,7 @@ The main packages used in our project:
 * matplotlib.pyplot
 
 ### Methods 
-* Long-short-term-memory Neural Networks (LSTM)
+* Long-Short-Term-Memory Neural Networks (LSTM)
 * Random Forest
 * Weighted Moving Average
 * Principal Components Regression
