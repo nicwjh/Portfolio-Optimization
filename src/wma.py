@@ -21,7 +21,7 @@ nasdaq100_tickers = [
 ]
 
 # Function to calculate Dynamic Weighted Moving Average (WMA)
-def dynamic_wma_forecast(data, window=20, horizon=22):
+def dynamic_wma_forecast(data, window=22, horizon=22):
     """
     Predicts a sequence of future values using a rolling Weighted Moving Average.
     
