@@ -1,10 +1,11 @@
 import os
 import pandas as pd
 import numpy as np
+from sklearn.metrics import mean_squared_error
 
 # Directory containing the cleaned CSV files
 input_dir = "data_cleaned"
-output_file = "preds/wma_preds.csv"
+output_file = "preds/wma_validation_results.csv"
 
 # List of tickers
 nasdaq100_tickers = [
@@ -33,30 +34,72 @@ def dynamic_wma_forecast(data, window=22, horizon=22):
     Returns:
         list: Predicted values for the next `horizon` days.
     """
-    # Create weights for WMA (higher weights for more recent observations)
     weights = np.arange(1, window + 1)  # [1, 2, ..., window]
-    
-    # Initialize the forecasted sequence
     forecast = []
-    
-    # Start with the historical data
     rolling_data = data[-window:].tolist()  # Get the last `window` values
     
     for _ in range(horizon):
-        # Calculate WMA for the current rolling window
         wma = np.dot(rolling_data, weights) / weights.sum()
-        
-        # Append the forecasted value
         forecast.append(wma)
-        
-        # Update the rolling window with the new forecast
         rolling_data.pop(0)  # Remove the oldest value
         rolling_data.append(wma)  # Add the new forecasted value
     
     return forecast
 
-# List to store all predictions
-all_predictions = []
+# Sliding window validation for WMA
+def sliding_window_validation(data, window=22, horizon=22, step=22):
+    """
+    Performs sliding window validation for WMA and computes MSE for each window.
+    
+    Parameters:
+        data (pd.Series): Historical adjusted close prices.
+        window (int): Lookback period for the moving average.
+        horizon (int): Number of days to forecast.
+        step (int): Step size for sliding the validation window.
+    
+    Returns:
+        list: Mean Squared Error (MSE) for each validation window.
+    """
+    n = len(data)
+    mse_list = []
+    
+    for start in range(0, n - window - horizon + 1, step):
+        train_end = start + window
+        test_end = train_end + horizon
+        
+        # Split data into training and testing sets
+        train_data = data[start:train_end]
+        test_data = data[train_end:test_end]
+        
+        # Forecast using WMA
+        predictions = dynamic_wma_forecast(train_data, window=window, horizon=horizon)
+        
+        # Calculate MSE for the window
+        mse = mean_squared_error(test_data, predictions)
+        mse_list.append(mse)
+    
+    return mse_list
+
+# Function to calculate normalized MSE
+def calculate_normalized_mse(mse, prices):
+    """
+    Normalize MSE by the mean price of the stock.
+    
+    Parameters:
+        mse (float): Mean Squared Error for the stock.
+        prices (pd.Series): Historical adjusted close prices of the stock.
+    
+    Returns:
+        float: Normalized MSE for the stock.
+    """
+    mean_price = prices.mean()
+    if mean_price == 0:
+        return np.nan  # Avoid division by zero
+    return mse / (mean_price**2)
+
+# List to store validation results
+validation_results = []
+normalized_mses = []
 
 # Process each stock
 for ticker in nasdaq100_tickers:
@@ -75,19 +118,32 @@ for ticker in nasdaq100_tickers:
         print(f"'Adj Close' column missing in {ticker}")
         continue
     
-    # Calculate dynamic WMA predictions
+    # Perform sliding window validation
     historical_prices = df['Adj Close']
-    dynamic_predictions = dynamic_wma_forecast(historical_prices, window=20, horizon=22)
+    mse_values = sliding_window_validation(historical_prices, window=22, horizon=22, step=22)
+    avg_mse = np.mean(mse_values)
     
-    # Append predictions to the list
-    all_predictions.append({
+    # Calculate normalized MSE
+    normalized_mse = calculate_normalized_mse(avg_mse, historical_prices)
+    if not np.isnan(normalized_mse):
+        normalized_mses.append(normalized_mse)
+    
+    # Append validation results
+    validation_results.append({
         "Ticker": ticker,
-        **{f"Day_{i+1}": dynamic_predictions[i] for i in range(22)}
+        "Average_MSE": avg_mse,
+        "Normalized_MSE": normalized_mse,
+        "MSE_List": mse_values  # Optional: Save all window MSEs for further analysis
     })
 
-# Create a DataFrame from all predictions
-predictions_df = pd.DataFrame(all_predictions)
+# Create a DataFrame from validation results
+validation_df = pd.DataFrame(validation_results)
 
-# Save the consolidated predictions to a single CSV file
-predictions_df.to_csv(output_file, index=False)
-print(f"All Dynamic WMA predictions saved to {output_file}")
+# Save the validation results to a single CSV file
+os.makedirs(os.path.dirname(output_file), exist_ok=True)
+validation_df.to_csv(output_file, index=False)
+print(f"Validation results saved to {output_file}")
+
+# Compute overall normalized MSE
+overall_normalized_mse = np.mean(normalized_mses)
+print(f"Overall Normalized MSE for WMA: {overall_normalized_mse}")
