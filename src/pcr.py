@@ -6,7 +6,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 
 input_dir = "data_cleaned"
-output_file = "preds/pcr_validation_results.csv"
+output_dir = "preds"
+output_file = os.path.join(output_dir, "pcr_validation_results_with_returns.csv")
 
 nasdaq100_tickers = [
     "NVDA", "AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "TSLA", "AVGO", "COST",
@@ -20,6 +21,14 @@ nasdaq100_tickers = [
     "KHC", "GEHC", "EXC", "MCHP", "CCEP", "IDXX", "ZS", "TTWO", "CSGP", "ANSS",
     "ON", "DXCM", "CDW", "BIIB", "WBD", "GFS", "ILMN", "MDB", "MRNA", "DLTR", "WBA"
 ]
+
+def calculate_normalized_mse(mse, prices):
+    mean_price = prices.mean()
+    
+    # Handle division by 0 edge case
+    if mean_price == 0:         
+        return np.nan  
+    return mse / (mean_price**2)
 
 def pcr_forecast(train_data, test_data, features):
     """
@@ -51,9 +60,9 @@ def pcr_forecast(train_data, test_data, features):
     reduced_test_features = pca.transform(test_features)
     return model.predict(reduced_test_features)
 
-def sliding_window_validation_pcr(data, features, window=22, horizon=22, step=22):
+def sliding_window_validation_pcr_with_returns(data, features, window=22, horizon=22, step=22):
     """
-    Perform sliding window validation for PCR and compute MSE.
+    Perform sliding window validation for PCR, compute MSE and predicted returns.
     
     Parameters:
         data (pd.DataFrame): Data containing features and target.
@@ -64,9 +73,11 @@ def sliding_window_validation_pcr(data, features, window=22, horizon=22, step=22
     
     Returns:
         list: Mean Squared Errors (MSE) for each validation window.
+        pd.DataFrame: DataFrame containing predicted prices and returns.
     """
     n = len(data)
     mse_list = []
+    predicted_returns = []
 
     for start in range(0, n - window - horizon + 1, step):
         # Train/test split
@@ -78,20 +89,25 @@ def sliding_window_validation_pcr(data, features, window=22, horizon=22, step=22
         mse = mean_squared_error(test_data["Adj Close"], predictions)
         mse_list.append(mse)
 
-    return mse_list
+        # Calculate predicted returns
+        pred_prices = pd.DataFrame({
+            "Date": test_data["Date"].values,
+            "Predicted_Adj_Close": predictions
+        })
+        pred_prices["Predicted_Returns"] = pred_prices["Predicted_Adj_Close"].pct_change()
+        predicted_returns.append(pred_prices)
 
-def calculate_normalized_mse(mse, prices):
-    mean_price = prices.mean()
-    
-    # Handle division by 0 edge case
-    if mean_price == 0:         
-        return np.nan  
-    return mse / (mean_price**2)
+    # Combine all predicted returns into one DataFrame
+    predicted_returns_df = pd.concat(predicted_returns, ignore_index=True)
+    return mse_list, predicted_returns_df
 
+# Validation results
 validation_results = []
 normalized_mses = []
+all_predicted_returns = []
 
 # Process each stock
+os.makedirs(output_dir, exist_ok=True)
 for ticker in nasdaq100_tickers:
     input_file = os.path.join(input_dir, f"{ticker}_cleaned_data.csv")
     
@@ -109,7 +125,7 @@ for ticker in nasdaq100_tickers:
     features = ["20-Day Returns", "20-Day Volatility", "Normalized 20-Day Returns", "Normalized 20-Day Volatility"]
 
     # Perform sliding window validation
-    mse_values = sliding_window_validation_pcr(df, features, window=22, horizon=22, step=22)
+    mse_values, predicted_returns = sliding_window_validation_pcr_with_returns(df, features)
     avg_mse = np.mean(mse_values)
     normalized_mse = calculate_normalized_mse(avg_mse, df["Adj Close"])
     
@@ -123,11 +139,19 @@ for ticker in nasdaq100_tickers:
         "Normalized_MSE": normalized_mse,
         "MSE_List": mse_values
     })
+    
+    # Save predicted returns
+    predicted_returns["Ticker"] = ticker
+    all_predicted_returns.append(predicted_returns)
 
+# Combine all predicted returns into one DataFrame and save
+predicted_returns_df = pd.concat(all_predicted_returns, ignore_index=True)
+predicted_returns_file = os.path.join(output_dir, "pcr_predicted_returns.csv")
+predicted_returns_df.to_csv(predicted_returns_file, index=False)
+print(f"Predicted returns saved to {predicted_returns_file}")
+
+# Save validation results
 validation_df = pd.DataFrame(validation_results)
-
-# Export validation results to CSV
-os.makedirs(os.path.dirname(output_file), exist_ok=True)
 validation_df.to_csv(output_file, index=False)
 print(f"Validation results saved to {output_file}")
 
