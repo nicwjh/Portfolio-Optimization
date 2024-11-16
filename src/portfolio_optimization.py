@@ -4,7 +4,7 @@ from numpy.linalg import inv
 from scipy.optimize import minimize
 
 # Load the data
-methods = ["pcr", "rf", "wma"]
+methods = ["pcr", "rf", "wma", "gru"]
 predicted_returns_data = []
 validation_results_data = []
 
