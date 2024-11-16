@@ -34,7 +34,7 @@ The main packages used in our project:
 * os
 
 ### Methods 
-* Long-Short-Term-Memory Neural Networks (LSTM)
+* Gated Recurrent Unit (GRU) Neural Networks
 * Random Forest
 * Weighted Moving Average
 * Principal Components Regression
