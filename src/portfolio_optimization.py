@@ -3,43 +3,84 @@ import pandas as pd
 from numpy.linalg import inv
 from scipy.optimize import minimize
 
-# Load PCR, RF, WMA results
-pcr_results = pd.read_csv("preds/pcr_validation_results.csv")
-rf_results = pd.read_csv("preds/rf_validation_results.csv")
-wma_results = pd.read_csv("preds/wma_validation_results.csv")
+# Load the data
+methods = ["pcr", "rf", "wma"]
+predicted_returns_data = []
+validation_results_data = []
 
-# Combine results into a single DataFrame
-results = pd.merge(
-    pcr_results[["Ticker", "Normalized_MSE", "Predicted_Return"]],
-    rf_results[["Ticker", "Normalized_MSE", "Predicted_Return"]],
-    on="Ticker",
-    suffixes=("_PCR", "_RF")
+# Read all the predicted returns and validation results files
+for method in methods:
+    predicted_returns_data.append(pd.read_csv(f"preds/{method}_predicted_returns.csv"))
+    validation_results_data.append(pd.read_csv(f"preds/{method}_validation_results.csv"))
+
+# Ensure predicted returns column names are dynamically handled
+for i, data in enumerate(predicted_returns_data):
+    print(f"Columns in {methods[i]}_predicted_returns.csv:")
+    print(data.columns)
+
+# Dynamically check and assign the correct column name for predicted returns
+predicted_returns_column_map = {}
+for i, df in enumerate(predicted_returns_data):
+    columns = df.columns
+    if "Predicted_Returns" in columns:
+        predicted_returns_column_map[methods[i]] = "Predicted_Returns"
+    elif "Predicted_Adj_Close" in columns:
+        predicted_returns_column_map[methods[i]] = "Predicted_Adj_Close"
+    else:
+        raise KeyError(f"Unable to find the predicted returns column in {methods[i]}_predicted_returns.csv")
+
+# Merge all validation results into a single DataFrame
+validation_merged = validation_results_data[0]
+for i in range(1, len(validation_results_data)):
+    validation_merged = pd.merge(
+        validation_merged,
+        validation_results_data[i][["Ticker", "Normalized_MSE"]],
+        on="Ticker",
+        suffixes=("", f"_{methods[i].upper()}")
+    )
+
+# Add the normalized MSE for the last method manually
+validation_merged.rename(columns={"Normalized_MSE": f"Normalized_MSE_{methods[0].upper()}"}, inplace=True)
+
+# Merge predicted returns with validation results
+for i, method in enumerate(methods):
+    predicted_column = predicted_returns_column_map[method]
+    validation_merged = pd.merge(
+        validation_merged,
+        predicted_returns_data[i][["Ticker", predicted_column]],
+        on="Ticker",
+        suffixes=("", f"_{method.upper()}")
+    )
+validation_merged.rename(
+    columns={f"{predicted_returns_column_map[methods[0]]}": f"Predicted_Returns_{methods[0].upper()}"},
+    inplace=True
 )
-results = pd.merge(
-    results,
-    wma_results[["Ticker", "Normalized_MSE", "Predicted_Return"]],
-    on="Ticker"
-)
-results.rename(columns={"Normalized_MSE": "Normalized_MSE_WMA", "Predicted_Return": "Predicted_Return_WMA"}, inplace=True)
 
 # Define confidence levels (inverse of normalized MSE)
-results["Confidence_PCR"] = 1 / results["Normalized_MSE_PCR"]
-results["Confidence_RF"] = 1 / results["Normalized_MSE_RF"]
-results["Confidence_WMA"] = 1 / results["Normalized_MSE_WMA"]
+for method in methods:
+    validation_merged[f"Confidence_{method.upper()}"] = 1 / validation_merged[f"Normalized_MSE_{method.upper()}"]
 
-# Equilibrium returns (assume equal weights)
-market_weights = np.ones(len(results)) / len(results)
-cov_matrix = np.eye(len(results))  # Placeholder, replace with actual covariance matrix
+# Black-Litterman parameters
+market_weights = np.ones(len(validation_merged)) / len(validation_merged)  # Equal weights as equilibrium
+cov_matrix = np.eye(len(validation_merged))  # Placeholder for covariance matrix
 tau = 0.025  # Scaling factor for uncertainty in equilibrium returns
 pi = tau * cov_matrix.dot(market_weights)
 
-# Views (predicted returns)
-views = results[["Predicted_Return_PCR", "Predicted_Return_RF", "Predicted_Return_WMA"]].mean(axis=1).values
-P = np.eye(len(results))  # One view per asset
+# Views (mean of predicted returns from the three methods)
+validation_merged["Mean_Predicted_Return"] = validation_merged[
+    [f"Predicted_Returns_{method.upper()}" for method in methods]
+].mean(axis=1)
+views = validation_merged["Mean_Predicted_Return"].values
+
+# P matrix (identity matrix: one view per asset)
+P = np.eye(len(validation_merged))
 Q = views
 
-# Confidence matrix
-Omega = np.diag(results[["Confidence_PCR", "Confidence_RF", "Confidence_WMA"]].mean(axis=1))
+# Confidence matrix (diagonal of mean confidence levels)
+validation_merged["Mean_Confidence"] = validation_merged[
+    [f"Confidence_{method.upper()}" for method in methods]
+].mean(axis=1)
+Omega = np.diag(validation_merged["Mean_Confidence"].values)
 
 # Calculate adjusted returns using Black-Litterman formula
 M_inverse = inv(inv(tau * cov_matrix) + P.T @ inv(Omega) @ P)
@@ -66,11 +107,11 @@ def portfolio_optimization(cov_matrix, expected_returns):
 # Optimize portfolio
 optimal_weights = portfolio_optimization(cov_matrix, adjusted_returns)
 
-# Display results
-results["Optimal_Weights"] = optimal_weights
+# Save and display results
+validation_merged["Optimal_Weights"] = optimal_weights
 print("Optimal Portfolio Weights:")
-print(results[["Ticker", "Optimal_Weights"]])
+print(validation_merged[["Ticker", "Optimal_Weights"]])
 
 # Save results
-results.to_csv("black_litterman_optimized_portfolio.csv", index=False)
+validation_merged.to_csv("black_litterman_optimized_portfolio.csv", index=False)
 print("Portfolio optimization results saved to 'black_litterman_optimized_portfolio.csv'")
