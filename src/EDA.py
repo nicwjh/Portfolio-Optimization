@@ -33,7 +33,7 @@ def load_cleaned_data(input_dir, tickers):
 
 cleaned_data = load_cleaned_data(input_dir, nasdaq100_tickers)
 
-# Distribution of Adjusted Close Prices
+# Distribution of adjusted close prices
 plt.figure(figsize=(10, 6))
 sns.histplot(cleaned_data["Adj Close"], kde=True, bins=50, color="blue")
 plt.title("Distribution of Adjusted Close Prices")
@@ -42,7 +42,7 @@ plt.ylabel("Frequency")
 plt.savefig("EDA/distAdjClose.pdf", format="pdf")
 plt.show()
 
-# Average Adjusted Close Price Per Ticker
+# Average adjusted close price per ticker
 average_prices = cleaned_data.groupby("Ticker")["Adj Close"].mean().sort_values(ascending=False)
 plt.figure(figsize=(12, 6))
 average_prices.plot(kind="bar", color="green")
@@ -53,7 +53,7 @@ plt.xticks(rotation=90)
 plt.savefig("EDA/avgAdjClose.pdf", format="pdf")
 plt.show()
 
-# Correlation Matrix for Features
+# Correlation matrix for features
 correlation_features = ["Adj Close", "Close", "High", "Low", "Open", "Volume", "20-Day Returns", "20-Day Volatility"]
 correlation_data = cleaned_data[correlation_features].dropna()
 correlation_matrix = correlation_data.corr()
@@ -63,7 +63,7 @@ plt.title("Correlation Matrix of Features")
 plt.savefig("EDA/corrMatrix.pdf", format="pdf")
 plt.show()
 
-# Time-Series Plot for Adjusted Close Price of Top 5 Stocks
+# Time-Series plot for adjusted close price of top 5 stocks
 top_5_tickers = average_prices.head(5).index
 plt.figure(figsize=(12, 6))
 for ticker in top_5_tickers:
@@ -76,7 +76,7 @@ plt.legend()
 plt.savefig("EDA/TSadjClose.pdf", format="pdf")
 plt.show()
 
-# Volatility Analysis
+# Volatility analysis
 plt.figure(figsize=(10, 6))
 sns.boxplot(x="Ticker", y="20-Day Volatility", data=cleaned_data)
 plt.title("Boxplot of 20-Day Volatility by Ticker")
@@ -85,7 +85,7 @@ plt.ylabel("20-Day Volatility")
 plt.savefig("EDA/volBoxPlot.pdf", format="pdf")
 plt.show()
 
-# Save summary statistics to a CSV
+# Summary statistics
 summary_stats = cleaned_data.describe()
 summary_stats.to_csv("EDA/eda_summary_statistics.csv")
 print("Summary statistics saved to eda_summary_statistics.csv")
