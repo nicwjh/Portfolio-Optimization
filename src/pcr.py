@@ -5,11 +5,9 @@ from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 
-# Directory containing the preprocessed cleaned CSV files
 input_dir = "data_cleaned"
 output_file = "preds/pcr_validation_results.csv"
 
-# List of tickers
 nasdaq100_tickers = [
     "NVDA", "AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "TSLA", "AVGO", "COST",
     "NFLX", "TMUS", "ASML", "CSCO", "ADBE", "AMD", "PEP", "LIN", "INTU", "AZN",
@@ -23,7 +21,6 @@ nasdaq100_tickers = [
     "ON", "DXCM", "CDW", "BIIB", "WBD", "GFS", "ILMN", "MDB", "MRNA", "DLTR", "WBA"
 ]
 
-# PCR implementation
 def pcr_forecast(train_data, test_data, features):
     """
     Perform Principal Components Regression (PCR) for forecasting.
@@ -39,11 +36,11 @@ def pcr_forecast(train_data, test_data, features):
     pca = PCA()
     model = LinearRegression()
 
-    # Extract training features and target
+    # Extract training features and target vector
     train_features = train_data[features].values
     train_target = train_data["Adj Close"].values
 
-    # PCA transformation
+    # Fit PCA
     reduced_features = pca.fit_transform(train_features)
 
     # Fit regression model
@@ -54,7 +51,6 @@ def pcr_forecast(train_data, test_data, features):
     reduced_test_features = pca.transform(test_features)
     return model.predict(reduced_test_features)
 
-# Sliding window validation for PCR
 def sliding_window_validation_pcr(data, features, window=22, horizon=22, step=22):
     """
     Perform sliding window validation for PCR and compute MSE.
@@ -73,25 +69,25 @@ def sliding_window_validation_pcr(data, features, window=22, horizon=22, step=22
     mse_list = []
 
     for start in range(0, n - window - horizon + 1, step):
-        # Training and testing splits
+        # Train/test split
         train_data = data[start : start + window]
         test_data = data[start + window : start + window + horizon]
 
-        # Forecast using PCR
+        # Make predictions
         predictions = pcr_forecast(train_data, test_data, features)
         mse = mean_squared_error(test_data["Adj Close"], predictions)
         mse_list.append(mse)
 
     return mse_list
 
-# Function to calculate normalized MSE
 def calculate_normalized_mse(mse, prices):
     mean_price = prices.mean()
-    if mean_price == 0:
-        return np.nan  # Avoid division by zero
+    
+    # Handle division by 0 edge case
+    if mean_price == 0:         
+        return np.nan  
     return mse / (mean_price**2)
 
-# Validation results
 validation_results = []
 normalized_mses = []
 
@@ -103,7 +99,6 @@ for ticker in nasdaq100_tickers:
         print(f"File not found for {ticker}")
         continue
     
-    # Load cleaned data
     df = pd.read_csv(input_file)
     
     if "Adj Close" not in df.columns:
@@ -129,14 +124,13 @@ for ticker in nasdaq100_tickers:
         "MSE_List": mse_values
     })
 
-# Create a DataFrame from validation results
 validation_df = pd.DataFrame(validation_results)
 
-# Save results to a CSV file
+# Export validation results to CSV
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 validation_df.to_csv(output_file, index=False)
 print(f"Validation results saved to {output_file}")
 
-# Overall normalized MSE
+# Overall normalized MSE of PCR
 overall_normalized_mse = np.mean(normalized_mses)
 print(f"Overall Normalized MSE for PCR: {overall_normalized_mse}")
