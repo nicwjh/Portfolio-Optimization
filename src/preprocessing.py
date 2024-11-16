@@ -3,7 +3,6 @@ import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
-# List of NASDAQ 100 tickers
 nasdaq100_tickers = [
     "NVDA", "AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "TSLA", "AVGO", "COST",
     "NFLX", "TMUS", "ASML", "CSCO", "ADBE", "AMD", "PEP", "LIN", "INTU", "AZN",
@@ -17,23 +16,29 @@ nasdaq100_tickers = [
     "ON", "DXCM", "CDW", "BIIB", "WBD", "GFS", "ILMN", "MDB", "MRNA", "DLTR", "WBA"
 ]
 
-# Define the input and output directories
 input_dir = "data"
 output_dir = "data_cleaned"
 
-# Ensure the output directory exists
 os.makedirs(output_dir, exist_ok=True)
 
-# Function to preprocess a single file
 def preprocess_file(file_path, ticker):
-    # Load the data
+    """
+    Preprocesses a single historical stock data file for analysis.
+
+    Parameters:
+        file_path (str): Path to the input CSV file containing raw historical stock data.
+        ticker (str): Stock ticker symbol to identify the processed data.
+        
+    Returns:
+        None: The cleaned data is saved to the output directory with the ticker name in the file name.
+    """
     data = pd.read_csv(file_path)
     
-    # Remove the first two rows and rename columns
+    # Remove irrelevant metadata, rename columns
     data_cleaned = data.iloc[2:].copy()
     data_cleaned.columns = ['Date', 'Adj Close', 'Close', 'High', 'Low', 'Open', 'Volume']
     
-    # Convert 'Date' column to datetime and numeric columns to floats
+    # Convert 'Date' column to datetime, numeric cols to floats 
     data_cleaned['Date'] = pd.to_datetime(data_cleaned['Date'], errors='coerce')
     numeric_columns = ['Adj Close', 'Close', 'High', 'Low', 'Open', 'Volume']
     for col in numeric_columns:
@@ -72,12 +77,12 @@ def preprocess_file(file_path, ticker):
     # Drop intermediate 'Daily Returns' column
     data_cleaned.drop(columns=['Daily Returns'], inplace=True)
     
-    # Save the cleaned data
+    # Export processed stock file to CSV
     output_path = os.path.join(output_dir, f"{ticker}_cleaned_data.csv")
     data_cleaned.to_csv(output_path, index=False)
     print(f"Processed and saved: {ticker}")
 
-# Loop through all tickers and preprocess each file
+# Process each ticker 
 for ticker in nasdaq100_tickers:
     input_file = os.path.join(input_dir, f"{ticker}_historical_data.csv")
     if os.path.exists(input_file):
