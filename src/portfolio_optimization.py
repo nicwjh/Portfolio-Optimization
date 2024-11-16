@@ -13,19 +13,14 @@ for method in methods:
     predicted_returns_data.append(pd.read_csv(f"preds/{method}_predicted_returns.csv"))
     validation_results_data.append(pd.read_csv(f"preds/{method}_validation_results.csv"))
 
-# Ensure predicted returns column names are dynamically handled
-for i, data in enumerate(predicted_returns_data):
-    print(f"Columns in {methods[i]}_predicted_returns.csv:")
-    print(data.columns)
-
 # Dynamically check and assign the correct column name for predicted returns
 predicted_returns_column_map = {}
 for i, df in enumerate(predicted_returns_data):
     columns = df.columns
     if "Predicted_Returns" in columns:
         predicted_returns_column_map[methods[i]] = "Predicted_Returns"
-    elif "Predicted_Adj_Close" in columns:
-        predicted_returns_column_map[methods[i]] = "Predicted_Adj_Close"
+    elif "Simple_Returns" in columns:
+        predicted_returns_column_map[methods[i]] = "Simple_Returns"
     else:
         raise KeyError(f"Unable to find the predicted returns column in {methods[i]}_predicted_returns.csv")
 
@@ -39,7 +34,6 @@ for i in range(1, len(validation_results_data)):
         suffixes=("", f"_{methods[i].upper()}")
     )
 
-# Add the normalized MSE for the last method manually
 validation_merged.rename(columns={"Normalized_MSE": f"Normalized_MSE_{methods[0].upper()}"}, inplace=True)
 
 # Merge predicted returns with validation results
@@ -60,13 +54,19 @@ validation_merged.rename(
 for method in methods:
     validation_merged[f"Confidence_{method.upper()}"] = 1 / validation_merged[f"Normalized_MSE_{method.upper()}"]
 
+# Load the covariance matrix
+cov_matrix = pd.read_csv("preds/covariance_matrix.csv", index_col=0).values
+correlation_matrix = np.corrcoef(cov_matrix)
+
+# Calculate average correlation
+average_correlation = np.mean(correlation_matrix[np.triu_indices_from(correlation_matrix, k=1)])
+
 # Black-Litterman parameters
 market_weights = np.ones(len(validation_merged)) / len(validation_merged)  # Equal weights as equilibrium
-cov_matrix = np.eye(len(validation_merged))  # Placeholder for covariance matrix
 tau = 0.025  # Scaling factor for uncertainty in equilibrium returns
 pi = tau * cov_matrix.dot(market_weights)
 
-# Views (mean of predicted returns from the three methods)
+# Views (mean of predicted returns from the methods)
 validation_merged["Mean_Predicted_Return"] = validation_merged[
     [f"Predicted_Returns_{method.upper()}" for method in methods]
 ].mean(axis=1)
@@ -82,7 +82,7 @@ validation_merged["Mean_Confidence"] = validation_merged[
 ].mean(axis=1)
 Omega = np.diag(validation_merged["Mean_Confidence"].values)
 
-# Calculate adjusted returns using Black-Litterman formula
+# Adjusted returns using Black-Litterman formula
 M_inverse = inv(inv(tau * cov_matrix) + P.T @ inv(Omega) @ P)
 adjusted_returns = M_inverse.dot(inv(tau * cov_matrix).dot(pi) + P.T @ inv(Omega).dot(Q))
 
@@ -91,7 +91,7 @@ def portfolio_optimization(cov_matrix, expected_returns):
     n_assets = len(expected_returns)
 
     def objective(weights):
-        return -((weights @ expected_returns) / np.sqrt(weights @ cov_matrix @ weights))
+        return -((weights @ expected_returns - 0.0443) / np.sqrt(weights @ cov_matrix @ weights))
 
     constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1}]  # Sum of weights = 1
     bounds = [(0, 1) for _ in range(n_assets)]  # Long-only portfolio
@@ -107,10 +107,27 @@ def portfolio_optimization(cov_matrix, expected_returns):
 # Optimize portfolio
 optimal_weights = portfolio_optimization(cov_matrix, adjusted_returns)
 
+# Calculate portfolio metrics
+portfolio_return = optimal_weights @ adjusted_returns
+portfolio_volatility = np.sqrt(optimal_weights @ cov_matrix @ optimal_weights)
+portfolio_sharpe_ratio = (portfolio_return - 0.0443) / portfolio_volatility
+portfolio_alpha = portfolio_return - 0.0443  # Excess return over risk-free rate
+
 # Save and display results
 validation_merged["Optimal_Weights"] = optimal_weights
-print("Optimal Portfolio Weights:")
-print(validation_merged[["Ticker", "Optimal_Weights"]])
+validation_merged["Expected_Return"] = adjusted_returns
+validation_merged["Volatility"] = np.sqrt(np.diag(cov_matrix))
+validation_merged["Sharpe_Ratio"] = (validation_merged["Expected_Return"] - 0.0443) / validation_merged["Volatility"]
+
+print("Optimal Portfolio Weights and Metrics:")
+print(validation_merged[["Ticker", "Optimal_Weights", "Expected_Return", "Volatility", "Sharpe_Ratio"]])
+
+# Print overall metrics
+print(f"Portfolio Return: {portfolio_return:.4f}")
+print(f"Portfolio Volatility: {portfolio_volatility:.4f}")
+print(f"Portfolio Sharpe Ratio: {portfolio_sharpe_ratio:.4f}")
+print(f"Portfolio Alpha: {portfolio_alpha:.4f}")
+print(f"Average Correlation: {average_correlation:.4f}")
 
 # Save results
 validation_merged.to_csv("black_litterman_optimized_portfolio.csv", index=False)
