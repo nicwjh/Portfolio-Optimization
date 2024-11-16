@@ -39,7 +39,7 @@ def fetch_nasdaq100_data(start_date, end_date, interval="1d"):
     
     return stock_data
 
-start_date = "2019-11-01"
+start_date = "2023-11-01"
 end_date = "2024-11-01"
 
 nasdaq100_data = fetch_nasdaq100_data(start_date, end_date)
@@ -47,7 +47,7 @@ nasdaq100_data = fetch_nasdaq100_data(start_date, end_date)
 # For each stock, save raw data to CSV
 for ticker, data in nasdaq100_data.items():
     if not data.empty:
-        data.to_csv(f"{ticker}_historical_data.csv")
+        data.to_csv(f"data/{ticker}_historical_data.csv")
         print(f"Saved {ticker} data to CSV.")
 
 print("Data collection completed.")

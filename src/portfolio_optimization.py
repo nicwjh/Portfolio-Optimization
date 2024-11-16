@@ -116,22 +116,28 @@ portfolio_volatility = np.sqrt(optimal_weights @ cov_matrix @ optimal_weights)
 portfolio_sharpe_ratio = (portfolio_return - rF) / portfolio_volatility
 portfolio_alpha = portfolio_return - rF  # Excess return over risk-free rate
 
-# Save and display results
+# Save results
 validation_merged["Optimal_Weights"] = optimal_weights
 validation_merged["Expected_Return"] = adjusted_returns
 validation_merged["Volatility"] = np.sqrt(np.diag(cov_matrix))
 validation_merged["Sharpe_Ratio"] = (validation_merged["Expected_Return"] - rF) / validation_merged["Volatility"]
 
+# Save all portfolio metrics
+portfolio_metrics = {
+    "Portfolio_Return": portfolio_return,
+    "Portfolio_Volatility": portfolio_volatility,
+    "Portfolio_Sharpe_Ratio": portfolio_sharpe_ratio,
+    "Portfolio_Alpha": portfolio_alpha,
+    "Average_Correlation": average_correlation,
+}
+
+# Save to CSV
+validation_merged.to_csv("black_litterman_optimized_portfolio.csv", index=False)
+pd.DataFrame([portfolio_metrics]).to_csv("black_litterman_portfolio_metrics.csv", index=False)
+
+# Display results
 print("Optimal Portfolio Weights and Metrics:")
 print(validation_merged[["Ticker", "Optimal_Weights", "Expected_Return", "Volatility", "Sharpe_Ratio"]])
-
-# Print overall metrics
-print(f"Portfolio Return: {portfolio_return:.4f}")
-print(f"Portfolio Volatility: {portfolio_volatility:.4f}")
-print(f"Portfolio Sharpe Ratio: {portfolio_sharpe_ratio:.4f}")
-print(f"Portfolio Alpha: {portfolio_alpha:.4f}")
-print(f"Average Correlation: {average_correlation:.4f}")
-
-# Save results
-validation_merged.to_csv("black_litterman_optimized_portfolio.csv", index=False)
-print("Portfolio optimization results saved to 'black_litterman_optimized_portfolio.csv'")
+print("Portfolio Metrics:")
+print(portfolio_metrics)
+print("Results saved to 'black_litterman_optimized_portfolio.csv' and 'black_litterman_portfolio_metrics.csv'")

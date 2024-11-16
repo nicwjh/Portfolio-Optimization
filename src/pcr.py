@@ -94,7 +94,7 @@ def sliding_window_validation_pcr_with_returns(data, features, window=22, horizo
             "Date": test_data["Date"].values,
             "Predicted_Adj_Close": predictions
         })
-        pred_prices["Predicted_Returns"] = pred_prices["Predicted_Adj_Close"].pct_change()
+        pred_prices["Simple_Returns"] = pred_prices["Predicted_Adj_Close"].pct_change()
         predicted_returns.append(pred_prices)
 
     # Combine all predicted returns into one DataFrame
