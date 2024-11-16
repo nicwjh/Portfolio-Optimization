@@ -4,9 +4,12 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
+# Input and output directories
 input_dir = "data_cleaned"
 output_file = "preds/rf_validation_results.csv"
+returns_file = "preds/rf_predicted_returns.csv"
 
+# List of tickers
 nasdaq100_tickers = [
     "NVDA", "AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "TSLA", "AVGO", "COST",
     "NFLX", "TMUS", "ASML", "CSCO", "ADBE", "AMD", "PEP", "LIN", "INTU", "AZN",
@@ -20,55 +23,64 @@ nasdaq100_tickers = [
     "ON", "DXCM", "CDW", "BIIB", "WBD", "GFS", "ILMN", "MDB", "MRNA", "DLTR", "WBA"
 ]
 
+# Random Forest forecast function
 def rf_forecast(train_data, test_data, features):
     """
-    Performs Random Forest Regression (RF) for forecasting.
-    
-    Parameters:
-        train_data (pd.DataFrame): Training data containing features and target.
-        test_data (pd.DataFrame): Testing data containing features.
-        features (list): List of feature column names.
-    
-    Returns:
-        np.array: Forecasted values for the test set.
+    Perform Random Forest Regression (RF) for forecasting.
     """
     model = RandomForestRegressor(
-        n_estimators=20,  
-        max_depth=5,  
+        n_estimators=20,
+        max_depth=5,
         random_state=42,
-        n_jobs=-1  
+        n_jobs=-1
     )
-
-    # Extract training features and target vector
+    # Train the model
     train_features = train_data[features].values
     train_target = train_data["Adj Close"].values
-
-    # Fit the Random Forest model
     model.fit(train_features, train_target)
 
     # Predict for the test set
     test_features = test_data[features].values
     return model.predict(test_features)
 
-def sliding_window_validation_rf(data, features, window=15, horizon=22, step=22):
+# Calculate simple returns
+def calculate_predicted_returns(predictions, test_data):
     """
-    Performs sliding window validation for Random Forest and compute MSE.
+    Calculate simple returns based on predicted values.
     
     Parameters:
-        data (pd.DataFrame): Data containing features and target.
-        features (list): List of feature column names.
-        window (int): Lookback period for training.
-        horizon (int): Number of days to forecast.
-        step (int): Step size for sliding the validation window.
+        predictions (np.array): Predicted prices for the test set.
+        test_data (pd.DataFrame): Test dataset with corresponding dates.
     
     Returns:
-        list: Mean Squared Errors (MSE) for each validation window.
+        pd.DataFrame: DataFrame containing predicted prices and simple returns.
     """
-    n = len(data)
+    if len(predictions) < 2:
+        raise ValueError("Predictions array must have at least two elements to calculate returns.")
+
+    # Ensure matching lengths for dates
+    valid_dates = test_data.index[:len(predictions)]
+
+    # Simple Returns: (P_t - P_t-1) / P_t-1
+    simple_returns = np.zeros(len(predictions))
+    simple_returns[1:] = (predictions[1:] - predictions[:-1]) / predictions[:-1]
+
+    return pd.DataFrame({
+        "Date": valid_dates,
+        "Predicted_Adj_Close": predictions,
+        "Simple_Returns": simple_returns
+    })
+
+# Sliding window validation for Random Forest
+def sliding_window_validation_rf(data, features, window=15, horizon=22, step=22):
+    """
+    Perform sliding window validation for Random Forest.
+    """
     mse_list = []
+    predictions_list = []
+    n = len(data)
 
     for start in range(0, n - window - horizon + 1, step):
-        # Train/test split
         train_data = data[start : start + window]
         test_data = data[start + window : start + window + horizon]
 
@@ -76,27 +88,23 @@ def sliding_window_validation_rf(data, features, window=15, horizon=22, step=22)
         predictions = rf_forecast(train_data, test_data, features)
         mse = mean_squared_error(test_data["Adj Close"], predictions)
         mse_list.append(mse)
+        predictions_list.append(predictions)
 
-    return mse_list
+    return mse_list, predictions_list
 
+# Normalized MSE
 def calculate_normalized_mse(mse, prices):
     """
-    Calculates normalized mean-squared-error.
-    
-    Parameters:
-        mse: Raw MSE values
-        prices: Price data
-        
-    Returns:
-        list: Mean Squared Errors (MSE) for each validation window.
+    Calculate normalized MSE.
     """
     mean_price = prices.mean()
     if mean_price == 0:
         return np.nan  # Avoid division by zero
     return mse / (mean_price**2)
 
+# Main validation process
 validation_results = []
-normalized_mses = []
+predicted_returns_list = []
 
 # Process each stock
 for ticker in nasdaq100_tickers:
@@ -106,7 +114,7 @@ for ticker in nasdaq100_tickers:
         print(f"File not found for {ticker}")
         continue
     
-    df = pd.read_csv(input_file)
+    df = pd.read_csv(input_file, parse_dates=["Date"], index_col="Date")
     
     if "Adj Close" not in df.columns:
         print(f"'Adj Close' column missing in {ticker}")
@@ -116,13 +124,11 @@ for ticker in nasdaq100_tickers:
     features = ["20-Day Returns", "20-Day Volatility", "Normalized 20-Day Returns", "Normalized 20-Day Volatility"]
 
     # Perform sliding window validation
-    mse_values = sliding_window_validation_rf(df, features, window=15, horizon=22, step=22)
+    mse_values, predictions_list = sliding_window_validation_rf(df, features, window=15, horizon=22, step=22)
     avg_mse = np.mean(mse_values)
     normalized_mse = calculate_normalized_mse(avg_mse, df["Adj Close"])
     
-    if not np.isnan(normalized_mse):
-        normalized_mses.append(normalized_mse)
-
+    # Save validation results
     validation_results.append({
         "Ticker": ticker,
         "Average_MSE": avg_mse,
@@ -130,12 +136,19 @@ for ticker in nasdaq100_tickers:
         "MSE_List": mse_values
     })
 
-validation_df = pd.DataFrame(validation_results)
+    # Calculate predicted returns (Simple Returns)
+    for predictions in predictions_list:
+        predicted_returns = calculate_predicted_returns(predictions, df)
+        predicted_returns["Ticker"] = ticker
+        predicted_returns_list.append(predicted_returns)
 
-# Export to CSV
+# Save validation results
+validation_df = pd.DataFrame(validation_results)
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 validation_df.to_csv(output_file, index=False)
 print(f"Validation results saved to {output_file}")
 
-overall_normalized_mse = np.mean(normalized_mses)
-print(f"Overall Normalized MSE for Random Forest: {overall_normalized_mse}")
+# Combine and save predicted returns
+all_returns_df = pd.concat(predicted_returns_list, ignore_index=True)
+all_returns_df.to_csv(returns_file, index=False)
+print(f"Predicted returns saved to {returns_file}")
