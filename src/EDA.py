@@ -3,10 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Directory containing the cleaned CSV files
 input_dir = "data_cleaned"
 
-# List of NASDAQ 100 tickers
 nasdaq100_tickers = [
     "NVDA", "AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "TSLA", "AVGO", "COST",
     "NFLX", "TMUS", "ASML", "CSCO", "ADBE", "AMD", "PEP", "LIN", "INTU", "AZN",
@@ -20,7 +18,7 @@ nasdaq100_tickers = [
     "ON", "DXCM", "CDW", "BIIB", "WBD", "GFS", "ILMN", "MDB", "MRNA", "DLTR", "WBA"
 ]
 
-# Combine all cleaned files into a single DataFrame for analysis
+# Merge cleaned data
 def load_cleaned_data(input_dir, tickers):
     dataframes = []
     for ticker in tickers:
@@ -33,20 +31,9 @@ def load_cleaned_data(input_dir, tickers):
             print(f"File not found: {ticker}")
     return pd.concat(dataframes, ignore_index=True)
 
-# Load the cleaned data
 cleaned_data = load_cleaned_data(input_dir, nasdaq100_tickers)
 
-# Overview of the data
-print("Data Overview:")
-print(cleaned_data.head())
-print("\nSummary Statistics:")
-print(cleaned_data.describe())
-
-# 1. Missing Values Analysis
-print("\nMissing Values:")
-print(cleaned_data.isnull().sum())
-
-# 2. Distribution of Adjusted Close Prices
+# Distribution of Adjusted Close Prices
 plt.figure(figsize=(10, 6))
 sns.histplot(cleaned_data["Adj Close"], kde=True, bins=50, color="blue")
 plt.title("Distribution of Adjusted Close Prices")
@@ -55,7 +42,7 @@ plt.ylabel("Frequency")
 plt.savefig("EDA/distAdjClose.pdf", format="pdf")
 plt.show()
 
-# 3. Average Adjusted Close Price Per Ticker
+# Average Adjusted Close Price Per Ticker
 average_prices = cleaned_data.groupby("Ticker")["Adj Close"].mean().sort_values(ascending=False)
 plt.figure(figsize=(12, 6))
 average_prices.plot(kind="bar", color="green")
@@ -66,8 +53,8 @@ plt.xticks(rotation=90)
 plt.savefig("EDA/avgAdjClose.pdf", format="pdf")
 plt.show()
 
-# 4. Correlation Matrix for Features
-correlation_features = ["Adj Close", "Close", "High", "Low", "Open", "Volume", "20-Day Returns", "Volatility"]
+# Correlation Matrix for Features
+correlation_features = ["Adj Close", "Close", "High", "Low", "Open", "Volume", "20-Day Returns", "20-Day Volatility"]
 correlation_data = cleaned_data[correlation_features].dropna()
 correlation_matrix = correlation_data.corr()
 plt.figure(figsize=(8, 6))
@@ -76,7 +63,7 @@ plt.title("Correlation Matrix of Features")
 plt.savefig("EDA/corrMatrix.pdf", format="pdf")
 plt.show()
 
-# 5. Time-Series Plot for Adjusted Close Price of Top 5 Stocks
+# Time-Series Plot for Adjusted Close Price of Top 5 Stocks
 top_5_tickers = average_prices.head(5).index
 plt.figure(figsize=(12, 6))
 for ticker in top_5_tickers:
@@ -89,7 +76,7 @@ plt.legend()
 plt.savefig("EDA/TSadjClose.pdf", format="pdf")
 plt.show()
 
-# 6. Volatility Analysis
+# Volatility Analysis
 plt.figure(figsize=(10, 6))
 sns.boxplot(x="Ticker", y="20-Day Volatility", data=cleaned_data)
 plt.title("Boxplot of 20-Day Volatility by Ticker")
@@ -102,3 +89,5 @@ plt.show()
 summary_stats = cleaned_data.describe()
 summary_stats.to_csv("EDA/eda_summary_statistics.csv")
 print("Summary statistics saved to eda_summary_statistics.csv")
+
+print("EDA Complete.")
