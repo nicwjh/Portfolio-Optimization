@@ -6,7 +6,7 @@ from sklearn.metrics import mean_squared_error
 
 # Directory containing the preprocessed cleaned CSV files
 input_dir = "data_cleaned"
-output_file = "preds/rf_optimized_validation_results.csv"
+output_file = "preds/rf_validation_results.csv"
 
 # List of tickers
 nasdaq100_tickers = [
