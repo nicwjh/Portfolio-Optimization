@@ -9,7 +9,6 @@ input_dir = "data_cleaned"
 output_file = "preds/rf_validation_results.csv"
 returns_file = "preds/rf_predicted_returns.csv"
 
-# List of tickers
 nasdaq100_tickers = [
     "NVDA", "AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "TSLA", "AVGO", "COST",
     "NFLX", "TMUS", "ASML", "CSCO", "ADBE", "AMD", "PEP", "LIN", "INTU", "AZN",
@@ -23,10 +22,9 @@ nasdaq100_tickers = [
     "ON", "DXCM", "CDW", "BIIB", "WBD", "GFS", "ILMN", "MDB", "MRNA", "DLTR", "WBA"
 ]
 
-# Random Forest forecast function
 def rf_forecast(train_data, test_data, features):
     """
-    Perform Random Forest Regression (RF) for forecasting.
+    Performs Random Forest Regression (RF) for forecasting.
     """
     model = RandomForestRegressor(
         n_estimators=20,
@@ -43,7 +41,6 @@ def rf_forecast(train_data, test_data, features):
     test_features = test_data[features].values
     return model.predict(test_features)
 
-# Calculate simple returns
 def calculate_predicted_returns(predictions, test_data):
     """
     Calculate simple returns based on predicted values.
@@ -71,10 +68,10 @@ def calculate_predicted_returns(predictions, test_data):
         "Simple_Returns": simple_returns
     })
 
-# Sliding window validation for Random Forest
+
 def sliding_window_validation_rf(data, features, window=15, horizon=22, step=22):
     """
-    Perform sliding window validation for Random Forest.
+    Performs sliding window validation for Random Forest.
     """
     mse_list = []
     predictions_list = []
@@ -92,7 +89,6 @@ def sliding_window_validation_rf(data, features, window=15, horizon=22, step=22)
 
     return mse_list, predictions_list
 
-# Normalized MSE
 def calculate_normalized_mse(mse, prices):
     """
     Calculate normalized MSE.
@@ -102,7 +98,6 @@ def calculate_normalized_mse(mse, prices):
         return np.nan  # Avoid division by zero
     return mse / (mean_price**2)
 
-# Main validation process
 validation_results = []
 predicted_returns_list = []
 
@@ -142,7 +137,6 @@ for ticker in nasdaq100_tickers:
         predicted_returns["Ticker"] = ticker
         predicted_returns_list.append(predicted_returns)
 
-# Save validation results
 validation_df = pd.DataFrame(validation_results)
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 validation_df.to_csv(output_file, index=False)

@@ -101,7 +101,6 @@ def sliding_window_validation_pcr_with_returns(data, features, window=22, horizo
     predicted_returns_df = pd.concat(predicted_returns, ignore_index=True)
     return mse_list, predicted_returns_df
 
-# Validation results
 validation_results = []
 normalized_mses = []
 all_predicted_returns = []

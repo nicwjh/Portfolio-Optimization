@@ -131,7 +131,6 @@ for ticker in nasdaq100_tickers:
         predicted_returns["Ticker"] = ticker
         predicted_returns_list.append(predicted_returns)
 
-# Save validation results
 validation_df = pd.DataFrame(validation_results)
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 validation_df.to_csv(output_file, index=False)
