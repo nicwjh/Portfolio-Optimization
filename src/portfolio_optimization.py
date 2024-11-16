@@ -3,6 +3,9 @@ import pandas as pd
 from numpy.linalg import inv
 from scipy.optimize import minimize
 
+# Define the risk-free rate
+rF = 0.0443  # Current risk-free rate (4.43%)
+
 # Load the data
 methods = ["pcr", "rf", "wma", "gru"]
 predicted_returns_data = []
@@ -91,7 +94,7 @@ def portfolio_optimization(cov_matrix, expected_returns):
     n_assets = len(expected_returns)
 
     def objective(weights):
-        return -((weights @ expected_returns - 0.0443) / np.sqrt(weights @ cov_matrix @ weights))
+        return -((weights @ expected_returns - rF) / np.sqrt(weights @ cov_matrix @ weights))
 
     constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1}]  # Sum of weights = 1
     bounds = [(0, 1) for _ in range(n_assets)]  # Long-only portfolio
@@ -110,14 +113,14 @@ optimal_weights = portfolio_optimization(cov_matrix, adjusted_returns)
 # Calculate portfolio metrics
 portfolio_return = optimal_weights @ adjusted_returns
 portfolio_volatility = np.sqrt(optimal_weights @ cov_matrix @ optimal_weights)
-portfolio_sharpe_ratio = (portfolio_return - 0.0443) / portfolio_volatility
-portfolio_alpha = portfolio_return - 0.0443  # Excess return over risk-free rate
+portfolio_sharpe_ratio = (portfolio_return - rF) / portfolio_volatility
+portfolio_alpha = portfolio_return - rF  # Excess return over risk-free rate
 
 # Save and display results
 validation_merged["Optimal_Weights"] = optimal_weights
 validation_merged["Expected_Return"] = adjusted_returns
 validation_merged["Volatility"] = np.sqrt(np.diag(cov_matrix))
-validation_merged["Sharpe_Ratio"] = (validation_merged["Expected_Return"] - 0.0443) / validation_merged["Volatility"]
+validation_merged["Sharpe_Ratio"] = (validation_merged["Expected_Return"] - rF) / validation_merged["Volatility"]
 
 print("Optimal Portfolio Weights and Metrics:")
 print(validation_merged[["Ticker", "Optimal_Weights", "Expected_Return", "Volatility", "Sharpe_Ratio"]])
