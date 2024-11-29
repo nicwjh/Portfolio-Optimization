@@ -43,7 +43,6 @@ for method in methods:
 from functools import reduce
 combined_avg_returns = reduce(lambda left, right: pd.merge(left, right, on='Ticker', how='inner'), avg_pred_returns)
 
-# Check if combined_avg_returns is empty
 if combined_avg_returns.empty:
     raise ValueError("No overlapping tickers found among methods after merging.")
 
@@ -61,7 +60,6 @@ cov_matrix_df = pd.read_csv(
     index_col=0
 )
 
-# Convert the data to float
 cov_matrix_df = cov_matrix_df.astype(np.float32)
 
 cov_matrix_df.index = cov_matrix_df.index.astype(str)
@@ -102,7 +100,7 @@ def mean_variance_optimization(expected_returns, cov_matrix, target_return=None)
     def portfolio_variance(weights):
         return weights @ (cov_matrix @ weights)
 
-    # Constraints: weights sum to 1
+    # Constraint: weights sum to 1
     constraints = [{"type": "eq", "fun": lambda weights: np.sum(weights) - 1}]
 
     if target_return is not None:
@@ -139,7 +137,6 @@ portfolio_volatility = np.sqrt(optimal_weights @ (cov_matrix @ optimal_weights))
 portfolio_sharpe_ratio = (portfolio_return - rF) / portfolio_volatility
 portfolio_alpha = portfolio_return - rF
 
-### Append Results to the DataFrame ###
 grouped_data["Optimal_Weights"] = optimal_weights
 
 # Get individual asset volatilities
@@ -178,7 +175,7 @@ def sparse_portfolio_optimization(expected_returns, cov_matrix, l1_lambda):
         penalty = l1_lambda * np.sum(np.abs(weights))
         return variance + penalty
 
-    # Constraints: weights sum to 1
+    # Constraint: weights sum to 1
     constraints = [{"type": "eq", "fun": lambda weights: np.sum(weights) - 1}]
 
     # Bounds for weights (long-only portfolio)
@@ -236,7 +233,6 @@ for l1_lambda in lambdas:
     except ValueError as e:
         print(f"Optimization failed for λ={l1_lambda}: {str(e)}")
 
-# Append Sparse Results to the DataFrame
 grouped_data["Sparse_Weights"] = best_sparse_weights
 grouped_data["Sparse_Sharpe_Ratio"] = (grouped_data["Expected_Return"] - rF) / grouped_data["Volatility"]
 
@@ -257,12 +253,13 @@ non_zero_sparse_weights = grouped_data[grouped_data["Sparse_Weights"] > 0]
 
 top_10_holdings = non_zero_sparse_weights.nlargest(10, "Sparse_Weights")
 
+# Export top-10 holdings
 top_10_holdings.to_csv("optimization_outputs/top_10_sparse_holdings.csv", index=False)
 
 print("\nTop 10 Stock Holdings by Sparse Weights:")
 print(top_10_holdings[["Ticker", "Sparse_Weights", "Expected_Return", "Volatility", "Sparse_Sharpe_Ratio"]])
 
-# Reduce the covariance matrix to include only the top 10 holdings
+# Reduce the covariance matrix to include only the top-10 holdings
 top_10_tickers = top_10_holdings["Ticker"].values
 top_10_cov_matrix = cov_matrix_df.loc[top_10_tickers, top_10_tickers].values
 
@@ -275,13 +272,13 @@ top_10_sparse_metrics = {
     ),
 }
 
-# Calculate Sharpe ratio for the top 10 sparse portfolio
+# Calculate Sharpe ratio for the top-10 sparse portfolio
 top_10_sparse_metrics["Top_10_Sparse_Sharpe"] = (
     (top_10_sparse_metrics["Top_10_Sparse_Return"] - rF) /
     top_10_sparse_metrics["Top_10_Sparse_Volatility"]
 )
 
-# Export top-10 holdings
+# Export top-10 holdings metrics
 pd.DataFrame([top_10_sparse_metrics]).to_csv("optimization_outputs/top_10_sparse_portfolio_metrics.csv", index=False)
 
 print("\nTop 10 Sparse Portfolio Metrics:")
