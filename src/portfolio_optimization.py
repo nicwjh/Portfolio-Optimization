@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from numpy.linalg import inv
 from scipy.optimize import minimize
 
 # Define the risk-free rate
@@ -8,136 +7,119 @@ rF = 0.0443  # Current risk-free rate (4.43%)
 
 # Load the data
 methods = ["pcr", "rf", "wma", "gru"]
-predicted_returns_data = []
-validation_results_data = []
+predicted_returns_data = {}
+validation_results_data = {}
 
 # Read all the predicted returns and validation results files
 for method in methods:
-    predicted_returns_data.append(pd.read_csv(f"preds/{method}_predicted_returns.csv"))
-    validation_results_data.append(pd.read_csv(f"preds/{method}_validation_results.csv"))
+    predicted_returns_data[method] = pd.read_csv(f"preds/{method}_predicted_returns.csv")
+    validation_results_data[method] = pd.read_csv(f"preds/{method}_validation_results.csv")
 
-# Dynamically check and assign the correct column name for predicted returns
-predicted_returns_column_map = {}
-for i, df in enumerate(predicted_returns_data):
-    columns = df.columns
-    if "Predicted_Returns" in columns:
-        predicted_returns_column_map[methods[i]] = "Predicted_Returns"
-    elif "Simple_Returns" in columns:
-        predicted_returns_column_map[methods[i]] = "Simple_Returns"
-    else:
-        raise KeyError(f"Unable to find the predicted returns column in {methods[i]}_predicted_returns.csv")
+# Merge predicted returns and validation results
+tickers = predicted_returns_data[methods[0]]['Ticker']
+combined_data = pd.DataFrame({'Ticker': tickers})
 
-# Merge all validation results into a single DataFrame
-validation_merged = validation_results_data[0]
-for i in range(1, len(validation_results_data)):
-    validation_merged = pd.merge(
-        validation_merged,
-        validation_results_data[i][["Ticker", "Normalized_MSE"]],
-        on="Ticker",
-        suffixes=("", f"_{methods[i].upper()}")
-    )
-
-validation_merged.rename(columns={"Normalized_MSE": f"Normalized_MSE_{methods[0].upper()}"}, inplace=True)
-
-# Merge predicted returns with validation results
-for i, method in enumerate(methods):
-    predicted_column = predicted_returns_column_map[method]
-    validation_merged = pd.merge(
-        validation_merged,
-        predicted_returns_data[i][["Ticker", predicted_column]],
-        on="Ticker",
-        suffixes=("", f"_{method.upper()}")
-    )
-validation_merged.rename(
-    columns={f"{predicted_returns_column_map[methods[0]]}": f"Predicted_Returns_{methods[0].upper()}"},
-    inplace=True
-)
-
-# Define confidence levels (inverse of normalized MSE)
 for method in methods:
-    validation_merged[f"Confidence_{method.upper()}"] = 1 / validation_merged[f"Normalized_MSE_{method.upper()}"]
+    preds = predicted_returns_data[method]
+    val_res = validation_results_data[method]
+
+    # Ensure the predicted returns column is correctly identified
+    if 'Predicted_Returns' in preds.columns:
+        pred_col = 'Predicted_Returns'
+    elif 'Simple_Returns' in preds.columns:
+        pred_col = 'Simple_Returns'
+    else:
+        raise KeyError(f"Unable to find the predicted returns column in {method}_predicted_returns.csv")
+
+    preds = preds[['Ticker', pred_col]]
+    preds.rename(columns={pred_col: f'Predicted_Returns_{method.upper()}'}, inplace=True)
+
+    val_res = val_res[['Ticker', 'Normalized_MSE']]
+    val_res.rename(columns={'Normalized_MSE': f'Normalized_MSE_{method.upper()}'}, inplace=True)
+
+    combined_data = combined_data.merge(preds, on='Ticker')
+    combined_data = combined_data.merge(val_res, on='Ticker')
+
+# Calculate mean predicted returns
+predicted_return_cols = [f'Predicted_Returns_{method.upper()}' for method in methods]
+combined_data['Expected_Return'] = combined_data[predicted_return_cols].mean(axis=1)
 
 # Load the covariance matrix
-cov_matrix = pd.read_csv("preds/covariance_matrix.csv", index_col=0).values
-correlation_matrix = np.corrcoef(cov_matrix)
+cov_matrix_df = pd.read_csv("preds/covariance_matrix.csv", index_col=0)
+cov_matrix = cov_matrix_df.values
 
-# Calculate average correlation
-average_correlation = np.mean(correlation_matrix[np.triu_indices_from(correlation_matrix, k=1)])
+# Check if the covariance matrix size matches the number of assets
+n_assets = len(combined_data)
+if cov_matrix.shape != (n_assets, n_assets):
+    raise ValueError("Covariance matrix size does not match the number of assets.")
 
-# Black-Litterman parameters
-market_weights = np.ones(len(validation_merged)) / len(validation_merged)  # Equal weights as equilibrium
-tau = 0.025  # Scaling factor for uncertainty in equilibrium returns
-pi = tau * cov_matrix.dot(market_weights)
+# Calculate Volatility (standard deviation)
+combined_data['Volatility'] = np.sqrt(np.diag(cov_matrix))
 
-# Views (mean of predicted returns from the methods)
-validation_merged["Mean_Predicted_Return"] = validation_merged[
-    [f"Predicted_Returns_{method.upper()}" for method in methods]
-].mean(axis=1)
-views = validation_merged["Mean_Predicted_Return"].values
+### Mean-Variance Optimization ###
 
-# P matrix (identity matrix: one view per asset)
-P = np.eye(len(validation_merged))
-Q = views
-
-# Confidence matrix (diagonal of mean confidence levels)
-validation_merged["Mean_Confidence"] = validation_merged[
-    [f"Confidence_{method.upper()}" for method in methods]
-].mean(axis=1)
-Omega = np.diag(validation_merged["Mean_Confidence"].values)
-
-# Adjusted returns using Black-Litterman formula
-M_inverse = inv(inv(tau * cov_matrix) + P.T @ inv(Omega) @ P)
-adjusted_returns = M_inverse.dot(inv(tau * cov_matrix).dot(pi) + P.T @ inv(Omega).dot(Q))
-
-# Portfolio optimization
-def portfolio_optimization(cov_matrix, expected_returns):
+def mean_variance_optimization(expected_returns, cov_matrix, target_return=None):
     n_assets = len(expected_returns)
 
-    def objective(weights):
-        return -((weights @ expected_returns - rF) / np.sqrt(weights @ cov_matrix @ weights))
+    def portfolio_variance(weights):
+        return weights.T @ cov_matrix @ weights
 
-    constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1}]  # Sum of weights = 1
-    bounds = [(0, 1) for _ in range(n_assets)]  # Long-only portfolio
+    # Constraints
+    constraints = [{'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1}]  # Sum of weights equals 1
 
+    if target_return is not None:
+        # Add target return constraint
+        constraints.append({'type': 'eq', 'fun': lambda weights: weights.T @ expected_returns - target_return})
+
+    # Bounds for weights (long-only portfolio)
+    bounds = [(0, 1) for _ in range(n_assets)]
+
+    # Initial guess (equal weights)
+    initial_weights = np.ones(n_assets) / n_assets
+
+    # Optimize
     result = minimize(
-        objective,
-        x0=np.ones(n_assets) / n_assets,
+        portfolio_variance,
+        initial_weights,
+        method='SLSQP',
         bounds=bounds,
         constraints=constraints
     )
+
     return result.x
 
-# Optimize portfolio
-optimal_weights = portfolio_optimization(cov_matrix, adjusted_returns)
+# Set a target return (optional)
+# You can set a target return, for example, the average of expected returns
+# target_return = combined_data['Expected_Return'].mean()
+
+# For this example, we'll optimize for the minimum variance portfolio without a target return
+optimal_weights = mean_variance_optimization(combined_data['Expected_Return'].values, cov_matrix)
 
 # Calculate portfolio metrics
-portfolio_return = optimal_weights @ adjusted_returns
-portfolio_volatility = np.sqrt(optimal_weights @ cov_matrix @ optimal_weights)
+portfolio_return = optimal_weights @ combined_data['Expected_Return'].values
+portfolio_volatility = np.sqrt(optimal_weights.T @ cov_matrix @ optimal_weights)
 portfolio_sharpe_ratio = (portfolio_return - rF) / portfolio_volatility
-portfolio_alpha = portfolio_return - rF  # Excess return over risk-free rate
+portfolio_alpha = portfolio_return - rF
 
 # Save results
-validation_merged["Optimal_Weights"] = optimal_weights
-validation_merged["Expected_Return"] = adjusted_returns
-validation_merged["Volatility"] = np.sqrt(np.diag(cov_matrix))
-validation_merged["Sharpe_Ratio"] = (validation_merged["Expected_Return"] - rF) / validation_merged["Volatility"]
+combined_data['Optimal_Weights'] = optimal_weights
+combined_data['Sharpe_Ratio'] = (combined_data['Expected_Return'] - rF) / combined_data['Volatility']
 
-# Save all portfolio metrics
+# Portfolio metrics
 portfolio_metrics = {
-    "Portfolio_Return": portfolio_return,
-    "Portfolio_Volatility": portfolio_volatility,
-    "Portfolio_Sharpe_Ratio": portfolio_sharpe_ratio,
-    "Portfolio_Alpha": portfolio_alpha,
-    "Average_Correlation": average_correlation,
+    'Portfolio_Return': portfolio_return,
+    'Portfolio_Volatility': portfolio_volatility,
+    'Portfolio_Sharpe_Ratio': portfolio_sharpe_ratio,
+    'Portfolio_Alpha': portfolio_alpha
 }
 
 # Save to CSV
-validation_merged.to_csv("black_litterman_optimized_portfolio.csv", index=False)
-pd.DataFrame([portfolio_metrics]).to_csv("black_litterman_portfolio_metrics.csv", index=False)
+combined_data.to_csv('mean_variance_optimized_portfolio.csv', index=False)
+pd.DataFrame([portfolio_metrics]).to_csv('mean_variance_portfolio_metrics.csv', index=False)
 
 # Display results
 print("Optimal Portfolio Weights and Metrics:")
-print(validation_merged[["Ticker", "Optimal_Weights", "Expected_Return", "Volatility", "Sharpe_Ratio"]])
-print("Portfolio Metrics:")
+print(combined_data[['Ticker', 'Optimal_Weights', 'Expected_Return', 'Volatility', 'Sharpe_Ratio']])
+print("\nPortfolio Metrics:")
 print(portfolio_metrics)
-print("Results saved to 'black_litterman_optimized_portfolio.csv' and 'black_litterman_portfolio_metrics.csv'")
+print("\nResults saved to 'mean_variance_optimized_portfolio.csv' and 'mean_variance_portfolio_metrics.csv'")
