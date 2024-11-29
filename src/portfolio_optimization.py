@@ -212,3 +212,52 @@ def sparse_portfolio_optimization(expected_returns, cov_matrix, l1_lambda):
         raise ValueError("Optimization failed: " + result.message)
 
     return result.x
+
+# Hyperparameter tuning for sparsity
+lambdas = [0.01, 0.05, 0.1, 0.5, 1.0]  # List of L1 regularization strengths
+best_sparse_weights = None
+best_sparse_metrics = None
+best_lambda = None
+highest_sharpe_ratio = float("-inf")
+
+for l1_lambda in lambdas:
+    try:
+        sparse_weights = sparse_portfolio_optimization(
+            grouped_data["Expected_Return"].values,
+            cov_matrix,
+            l1_lambda
+        )
+
+        # Calculate sparse portfolio metrics
+        sparse_portfolio_return = sparse_weights @ grouped_data["Expected_Return"].values
+        sparse_portfolio_volatility = np.sqrt(sparse_weights @ (cov_matrix @ sparse_weights))
+        sparse_portfolio_sharpe_ratio = (sparse_portfolio_return - rF) / sparse_portfolio_volatility
+
+        # Save results if Sharpe ratio improves
+        if sparse_portfolio_sharpe_ratio > highest_sharpe_ratio:
+            best_sparse_weights = sparse_weights
+            best_sparse_metrics = {
+                "Portfolio_Return": sparse_portfolio_return,
+                "Portfolio_Volatility": sparse_portfolio_volatility,
+                "Portfolio_Sharpe_Ratio": sparse_portfolio_sharpe_ratio,
+                "Portfolio_Alpha": sparse_portfolio_return - rF,
+            }
+            best_lambda = l1_lambda
+            highest_sharpe_ratio = sparse_portfolio_sharpe_ratio
+    except ValueError as e:
+        print(f"Optimization failed for λ={l1_lambda}: {str(e)}")
+
+# Append Sparse Results to the DataFrame
+grouped_data["Sparse_Weights"] = best_sparse_weights
+grouped_data["Sparse_Sharpe_Ratio"] = (grouped_data["Expected_Return"] - rF) / grouped_data["Volatility"]
+
+# Export sparse portfolio results
+grouped_data.to_csv("sparse_mean_variance_optimized_portfolio.csv", index=False)
+pd.DataFrame([best_sparse_metrics]).to_csv("sparse_mean_variance_portfolio_metrics.csv", index=False)
+
+print(f"Best λ: {best_lambda}")
+print("Sparse Portfolio Weights and Metrics:")
+print(grouped_data[["Ticker", "Sparse_Weights", "Expected_Return", "Volatility", "Sparse_Sharpe_Ratio"]])
+print("\nSparse Portfolio Metrics:")
+print(best_sparse_metrics)
+print("\nResults saved to 'sparse_mean_variance_optimized_portfolio.csv' and 'sparse_mean_variance_portfolio_metrics.csv'")
