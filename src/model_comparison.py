@@ -30,7 +30,7 @@ comparison_df = pd.merge(
     on="Ticker"
 )
 
-# Calculate summary statistics
+# Summary statistics
 wma_mean_mse = comparison_df["WMA_Normalized_MSE"].mean()
 pcr_mean_mse = comparison_df["PCR_Normalized_MSE"].mean()
 rf_mean_mse = comparison_df["RF_Normalized_MSE"].mean()
@@ -54,6 +54,6 @@ plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "mse_comparison_plot.png"))
 plt.show()
 
-# Export comparison DataFrame to CSV
+# Export 
 comparison_df.to_csv(os.path.join(output_dir, "mse_comparison_results.csv"), index=False)
 print(f"Comparison results saved to mse_comparison_results.csv")
