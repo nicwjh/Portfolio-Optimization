@@ -18,7 +18,6 @@ nasdaq100_tickers = [
     "ON", "DXCM", "CDW", "BIIB", "WBD", "GFS", "ILMN", "MDB", "MRNA", "DLTR", "WBA"
 ]
 
-# Merge cleaned data
 def load_cleaned_data(input_dir, tickers):
     dataframes = []
     for ticker in tickers:

@@ -12,7 +12,6 @@ input_dir = "data_cleaned"
 output_file = "preds/gru_validation_results.csv"
 returns_file = "preds/gru_predicted_returns.csv"
 
-# Date range for GRU (computational limits)
 start_date = "2023-11-01"
 end_date = "2024-11-01"
 
