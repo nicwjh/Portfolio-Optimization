@@ -167,3 +167,48 @@ portfolio_metrics = {
 #print("\nPortfolio Metrics:")
 #print(portfolio_metrics)
 #print("\nResults saved to 'mean_variance_optimized_portfolio.csv' and 'mean_variance_portfolio_metrics.csv'")
+
+### Sparse Portfolio Optimization ###
+def sparse_portfolio_optimization(expected_returns, cov_matrix, l1_lambda):
+    """
+    Perform sparse portfolio optimization using L1 regularization.
+
+    Args:
+        expected_returns (np.ndarray): Array of expected returns.
+        cov_matrix (np.ndarray): Covariance matrix.
+        l1_lambda (float): L1 regularization strength.
+
+    Returns:
+        np.ndarray: Optimal sparse portfolio weights.
+    """
+    n_assets = len(expected_returns)
+
+    def objective(weights):
+        # Portfolio variance + L1 regularization penalty
+        variance = weights @ (cov_matrix @ weights)
+        penalty = l1_lambda * np.sum(np.abs(weights))
+        return variance + penalty
+
+    # Constraints: weights sum to 1
+    constraints = [{"type": "eq", "fun": lambda weights: np.sum(weights) - 1}]
+
+    # Bounds for weights (long-only portfolio)
+    bounds = [(0, 1) for _ in range(n_assets)]
+
+    # Initial guess (equal distribution)
+    initial_weights = np.ones(n_assets) / n_assets
+
+    # Optimize using SLSQP
+    result = minimize(
+        objective,
+        initial_weights,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=constraints,
+        options={"maxiter": 1000}
+    )
+
+    if not result.success:
+        raise ValueError("Optimization failed: " + result.message)
+
+    return result.x
