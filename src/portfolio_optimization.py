@@ -257,6 +257,11 @@ non_zero_sparse_weights = grouped_data[grouped_data["Sparse_Weights"] > 0]
 
 top_10_holdings = non_zero_sparse_weights.nlargest(10, "Sparse_Weights")
 
+top_10_holdings.to_csv("optimization_outputs/top_10_sparse_holdings.csv", index=False)
+
+print("\nTop 10 Stock Holdings by Sparse Weights:")
+print(top_10_holdings[["Ticker", "Sparse_Weights", "Expected_Return", "Volatility", "Sparse_Sharpe_Ratio"]])
+
 # Reduce the covariance matrix to include only the top 10 holdings
 top_10_tickers = top_10_holdings["Ticker"].values
 top_10_cov_matrix = cov_matrix_df.loc[top_10_tickers, top_10_tickers].values
