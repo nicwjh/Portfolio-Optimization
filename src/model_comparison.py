@@ -42,6 +42,8 @@ print(f"  PCR: {pcr_mean_mse}")
 print(f"  RF: {rf_mean_mse}")
 print(f"  GRU: {gru_mean_mse}")
 
+output_dir = "figures"
+
 # Comparison plot
 comparison_df.set_index("Ticker").plot(kind="bar", figsize=(12, 6), width=0.8)
 plt.title("Normalized MSE Comparison by Ticker")
@@ -49,9 +51,9 @@ plt.ylabel("Normalized MSE")
 plt.xlabel("Tickers")
 plt.legend(["WMA", "PCR", "RF", "GRU"])
 plt.tight_layout()
-plt.savefig(os.path.join(results_dir, "mse_comparison_plot.png"))
+plt.savefig(os.path.join(output_dir, "mse_comparison_plot.png"))
 plt.show()
 
 # Export comparison DataFrame to CSV
-comparison_df.to_csv(os.path.join(results_dir, "mse_comparison_results.csv"), index=False)
+comparison_df.to_csv(os.path.join(output_dir, "mse_comparison_results.csv"), index=False)
 print(f"Comparison results saved to mse_comparison_results.csv")
