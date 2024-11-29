@@ -44,7 +44,6 @@ end_date = "2024-11-01"
 
 nasdaq100_data = fetch_nasdaq100_data(start_date, end_date)
 
-# For each stock, save raw data to CSV
 for ticker, data in nasdaq100_data.items():
     if not data.empty:
         data.to_csv(f"data/{ticker}_historical_data.csv")

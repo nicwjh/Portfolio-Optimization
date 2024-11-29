@@ -4,7 +4,6 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
-# Input and output directories
 input_dir = "data_cleaned"
 output_file = "preds/rf_validation_results.csv"
 returns_file = "preds/rf_predicted_returns.csv"
@@ -32,12 +31,11 @@ def rf_forecast(train_data, test_data, features):
         random_state=42,
         n_jobs=-1
     )
-    # Train the model
     train_features = train_data[features].values
     train_target = train_data["Adj Close"].values
     model.fit(train_features, train_target)
 
-    # Predict for the test set
+    # Predict for test set
     test_features = test_data[features].values
     return model.predict(test_features)
 
@@ -101,7 +99,6 @@ def calculate_normalized_mse(mse, prices):
 validation_results = []
 predicted_returns_list = []
 
-# Process each stock
 for ticker in nasdaq100_tickers:
     input_file = os.path.join(input_dir, f"{ticker}_cleaned_data.csv")
     
@@ -142,7 +139,6 @@ os.makedirs(os.path.dirname(output_file), exist_ok=True)
 validation_df.to_csv(output_file, index=False)
 print(f"Validation results saved to {output_file}")
 
-# Combine and save predicted returns
 all_returns_df = pd.concat(predicted_returns_list, ignore_index=True)
 all_returns_df.to_csv(returns_file, index=False)
 print(f"Predicted returns saved to {returns_file}")

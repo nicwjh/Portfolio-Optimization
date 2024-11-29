@@ -94,7 +94,6 @@ validation_results = []
 normalized_mses = []
 predicted_returns_list = []
 
-# Process each stock
 for ticker in nasdaq100_tickers:
     input_file = os.path.join(input_dir, f"{ticker}_cleaned_data.csv")
     
