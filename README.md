@@ -38,6 +38,7 @@ The main packages used in our project:
 * Random Forest
 * Weighted Moving Average
 * Principal Components Regression
+* Mean-Variance Optimization
 
 ### Technologies 
 * Python
@@ -51,7 +52,7 @@ The main packages used in our project:
 - [numpy](https://numpy.org/) (A library for numerical computing in Python, providing support for large, multi-dimensional arrays and matrices.)
 - [scikit-learn](https://scikit-learn.org/) (A machine learning library for Python, offering tools for classification, regression, clustering, and dimensionality reduction.)
 
-## Usage
+<>## Usage
 
 
 
