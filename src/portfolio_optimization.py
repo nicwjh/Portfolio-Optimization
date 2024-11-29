@@ -3,8 +3,8 @@ import pandas as pd
 from scipy.optimize import minimize
 import gc
 
-# Define the risk-free rate
-rF = 0.0443  # Current risk-free rate (4.43% - 1-year US T-bill)
+ # Current risk-free rate (4.43% - 1-year US T-bill)
+rF = 0.0443 
 
 methods = ["pcr", "rf", "wma", "gru"]
 
@@ -55,7 +55,7 @@ combined_avg_returns['Expected_Return'] = combined_avg_returns[predicted_return_
 grouped_data = combined_avg_returns[['Ticker', 'Expected_Return']]
 
 ### Load and Filter Covariance Matrix ###
-# Load covariance matrix without specifying dtype
+
 cov_matrix_df = pd.read_csv(
     covariance_matrix_file,
     index_col=0
@@ -156,17 +156,6 @@ portfolio_metrics = {
     "Portfolio_Sharpe_Ratio": portfolio_sharpe_ratio,
     "Portfolio_Alpha": portfolio_alpha,
 }
-
-# Export
-#grouped_data.to_csv("mean_variance_optimized_portfolio.csv", index=False)
-#pd.DataFrame([portfolio_metrics]).to_csv("mean_variance_portfolio_metrics.csv", index=False)
-
-# Display
-#print("Optimal Portfolio Weights and Metrics:")
-#print(grouped_data[["Ticker", "Optimal_Weights", "Expected_Return", "Volatility", "Sharpe_Ratio"]])
-#print("\nPortfolio Metrics:")
-#print(portfolio_metrics)
-#print("\nResults saved to 'mean_variance_optimized_portfolio.csv' and 'mean_variance_portfolio_metrics.csv'")
 
 ### Sparse Portfolio Optimization ###
 def sparse_portfolio_optimization(expected_returns, cov_matrix, l1_lambda):
