@@ -83,3 +83,87 @@ cov_matrix = cov_matrix_df.values
 n_assets = len(unique_tickers)
 if cov_matrix.shape != (n_assets, n_assets):
     raise ValueError("Covariance matrix size does not match the number of unique tickers.")
+
+### Mean-Variance Optimization ###
+def mean_variance_optimization(expected_returns, cov_matrix, target_return=None):
+    """
+    Perform mean-variance portfolio optimization.
+
+    Args:
+        expected_returns (np.ndarray): Array of expected returns.
+        cov_matrix (np.ndarray): Covariance matrix.
+        target_return (float, optional): Target return for the portfolio.
+
+    Returns:
+        np.ndarray: Optimal portfolio weights.
+    """
+    n_assets = len(expected_returns)
+
+    def portfolio_variance(weights):
+        return weights @ (cov_matrix @ weights)
+
+    # Constraints: weights sum to 1
+    constraints = [{"type": "eq", "fun": lambda weights: np.sum(weights) - 1}]
+
+    if target_return is not None:
+        # Add target return constraint
+        constraints.append({"type": "eq", "fun": lambda weights: weights @ expected_returns - target_return})
+
+    # Bounds for weights (long-only portfolio)
+    bounds = [(0, 1) for _ in range(n_assets)]
+
+    # Initial guess (equal distribution)
+    initial_weights = np.ones(n_assets) / n_assets
+
+    # Optimize using SLSQP 
+    result = minimize(
+        portfolio_variance,
+        initial_weights,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=constraints,
+        options={"maxiter": 1000}
+    )
+
+    if not result.success:
+        raise ValueError("Optimization failed: " + result.message)
+
+    return result.x
+
+# Optimize for the minimum variance portfolio
+optimal_weights = mean_variance_optimization(grouped_data["Expected_Return"].values, cov_matrix)
+
+### Calculate Portfolio Metrics ###
+portfolio_return = optimal_weights @ grouped_data["Expected_Return"].values
+portfolio_volatility = np.sqrt(optimal_weights @ (cov_matrix @ optimal_weights))
+portfolio_sharpe_ratio = (portfolio_return - rF) / portfolio_volatility
+portfolio_alpha = portfolio_return - rF
+
+### Append Results to the DataFrame ###
+grouped_data["Optimal_Weights"] = optimal_weights
+
+# Get individual asset volatilities
+asset_volatilities = np.sqrt(np.diag(cov_matrix))
+grouped_data["Volatility"] = asset_volatilities
+
+# Calculate Sharpe Ratio for each asset
+grouped_data["Sharpe_Ratio"] = (grouped_data["Expected_Return"] - rF) / grouped_data["Volatility"]
+
+### Portfolio Metrics ###
+portfolio_metrics = {
+    "Portfolio_Return": portfolio_return,
+    "Portfolio_Volatility": portfolio_volatility,
+    "Portfolio_Sharpe_Ratio": portfolio_sharpe_ratio,
+    "Portfolio_Alpha": portfolio_alpha,
+}
+
+# Export
+#grouped_data.to_csv("mean_variance_optimized_portfolio.csv", index=False)
+#pd.DataFrame([portfolio_metrics]).to_csv("mean_variance_portfolio_metrics.csv", index=False)
+
+# Display
+#print("Optimal Portfolio Weights and Metrics:")
+#print(grouped_data[["Ticker", "Optimal_Weights", "Expected_Return", "Volatility", "Sharpe_Ratio"]])
+#print("\nPortfolio Metrics:")
+#print(portfolio_metrics)
+#print("\nResults saved to 'mean_variance_optimized_portfolio.csv' and 'mean_variance_portfolio_metrics.csv'")
