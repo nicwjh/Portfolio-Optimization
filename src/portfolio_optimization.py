@@ -261,3 +261,30 @@ print(grouped_data[["Ticker", "Sparse_Weights", "Expected_Return", "Volatility",
 print("\nSparse Portfolio Metrics:")
 print(best_sparse_metrics)
 print("\nResults saved to 'sparse_mean_variance_optimized_portfolio.csv' and 'sparse_mean_variance_portfolio_metrics.csv'")
+
+### Show top-10 holdings in portfolio ### 
+
+# Reduce the covariance matrix to include only the top 10 holdings
+top_10_tickers = top_10_holdings["Ticker"].values
+top_10_cov_matrix = cov_matrix_df.loc[top_10_tickers, top_10_tickers].values
+
+# Calculate metrics for the top 10 holdings
+top_10_sparse_metrics = {
+    "Top_10_Sparse_Weights_Sum": top_10_holdings["Sparse_Weights"].sum(),
+    "Top_10_Sparse_Return": (top_10_holdings["Sparse_Weights"] * top_10_holdings["Expected_Return"]).sum(),
+    "Top_10_Sparse_Volatility": np.sqrt(
+        top_10_holdings["Sparse_Weights"].values @ (top_10_cov_matrix @ top_10_holdings["Sparse_Weights"].values)
+    ),
+}
+
+# Calculate Sharpe ratio for the top 10 sparse portfolio
+top_10_sparse_metrics["Top_10_Sparse_Sharpe"] = (
+    (top_10_sparse_metrics["Top_10_Sparse_Return"] - rF) /
+    top_10_sparse_metrics["Top_10_Sparse_Volatility"]
+)
+
+# Export top-10 holdings
+pd.DataFrame([top_10_sparse_metrics]).to_csv("top_10_sparse_portfolio_metrics.csv", index=False)
+
+print("\nTop 10 Sparse Portfolio Metrics:")
+print(top_10_sparse_metrics)
