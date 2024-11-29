@@ -252,8 +252,8 @@ grouped_data["Sparse_Weights"] = best_sparse_weights
 grouped_data["Sparse_Sharpe_Ratio"] = (grouped_data["Expected_Return"] - rF) / grouped_data["Volatility"]
 
 # Export sparse portfolio results
-grouped_data.to_csv("sparse_mean_variance_optimized_portfolio.csv", index=False)
-pd.DataFrame([best_sparse_metrics]).to_csv("sparse_mean_variance_portfolio_metrics.csv", index=False)
+grouped_data.to_csv("optimization_outputs/sparse_mean_variance_optimized_portfolio.csv", index=False)
+pd.DataFrame([best_sparse_metrics]).to_csv("optimization_outputs/sparse_mean_variance_portfolio_metrics.csv", index=False)
 
 print(f"Best λ: {best_lambda}")
 print("Sparse Portfolio Weights and Metrics:")
@@ -263,6 +263,10 @@ print(best_sparse_metrics)
 print("\nResults saved to 'sparse_mean_variance_optimized_portfolio.csv' and 'sparse_mean_variance_portfolio_metrics.csv'")
 
 ### Show top-10 holdings in portfolio ### 
+
+non_zero_sparse_weights = grouped_data[grouped_data["Sparse_Weights"] > 0]
+
+top_10_holdings = non_zero_sparse_weights.nlargest(10, "Sparse_Weights")
 
 # Reduce the covariance matrix to include only the top 10 holdings
 top_10_tickers = top_10_holdings["Ticker"].values
@@ -284,7 +288,7 @@ top_10_sparse_metrics["Top_10_Sparse_Sharpe"] = (
 )
 
 # Export top-10 holdings
-pd.DataFrame([top_10_sparse_metrics]).to_csv("top_10_sparse_portfolio_metrics.csv", index=False)
+pd.DataFrame([top_10_sparse_metrics]).to_csv("optimization_outputs/top_10_sparse_portfolio_metrics.csv", index=False)
 
 print("\nTop 10 Sparse Portfolio Metrics:")
 print(top_10_sparse_metrics)
