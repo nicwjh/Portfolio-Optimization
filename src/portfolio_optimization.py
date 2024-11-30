@@ -5,6 +5,7 @@ import gc
 
  # Current risk-free rate (4.43% - 1-year US T-bill)
 rF = 0.0443 
+target_return = 0.10
 
 methods = ["pcr", "rf", "wma", "gru"]
 
