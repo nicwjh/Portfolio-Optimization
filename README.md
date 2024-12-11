@@ -31,8 +31,9 @@ The main packages used in our project:
 * pandas
 * numpy
 * sklearn
-* matplotlib.pyplot
-* os
+* Keras
+* Tensorflow
+* SciPy
 
 ### Methods 
 * Gated Recurrent Unit (GRU) Neural Networks
@@ -64,7 +65,7 @@ The main packages used in our project:
 ## License
 Distributed under the MIT License - `LICENSE`. 
 
-Repository  Link: [https://github.com/nicwjh/Portfolio-Optimization)
+Repository Link: [https://github.com/nicwjh/Portfolio-Optimization)
 
 ## Acknowledgements
 I would like to thank Professor Soroush Saghafian for his mentorship throughout this project. The exceptional learning environment and resources provided by [Harvard University](https://github.com/harvard) has also been instrumental in shaping this work. 
